@@ -1,172 +1,1020 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>PulseHold - Stability Challenge</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      text-align: center;
-      background: #111;
-      color: white;
-      overflow-x: hidden;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SHIFT — Sensor Reset</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=Syne:wght@400;700;800&display=swap');
+:root{
+  --void:#040810;--deep:#0a0f1a;--rim:#1a2436;--mist:#263040;
+  --silver:#6a8090;--ghost:#a0c0d8;--white:#e8f4ff;
+  --pulse:#00e5c8;--calm:#3377ff;--warn:#ff6020;--danger:#ff1a40;
+  --safe:#00cc77;--gold:#ffbb00;--violet:#9944ff;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--void);font-family:'DM Mono',monospace;color:var(--white);user-select:none;touch-action:none;}
+#bg-canvas{position:fixed;inset:0;z-index:0;}
+.screen{position:absolute;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.5s ease;padding:24px 22px;gap:14px;overflow-y:auto;}
+.screen.active{opacity:1;pointer-events:all;}
 
-    h1 {
-      margin-top: 30px;
-      font-size: 28px;
-    }
+/* HUD */
+#sensor-hud{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:100;display:flex;gap:10px;align-items:center;background:rgba(4,8,16,0.85);border:1px solid rgba(0,229,200,0.18);border-radius:30px;padding:7px 16px;backdrop-filter:blur(16px);}
+.hud-s{display:flex;align-items:center;gap:5px;font-size:8px;letter-spacing:0.12em;text-transform:uppercase;color:var(--silver);}
+.hdot{width:5px;height:5px;border-radius:50%;background:var(--rim);transition:all 0.3s;}
+.hdot.on{background:var(--safe);box-shadow:0 0 6px var(--safe);animation:blink 2s infinite;}
+.hdot.warn{background:var(--gold);box-shadow:0 0 6px var(--gold);animation:blink 0.8s infinite;}
+.hdot.hot{background:var(--danger);box-shadow:0 0 6px var(--danger);animation:blink 0.4s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
 
-    #pulseCircle {
-      width: 150px;
-      height: 150px;
-      margin: 40px auto;
-      border-radius: 50%;
-      background: red;
-      box-shadow: 0 0 40px red;
-      transition: all 0.1s linear;
-    }
+/* ALERT */
+#alert-banner{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:200;display:flex;align-items:center;gap:10px;background:rgba(255,60,32,0.12);border:1px solid rgba(255,96,32,0.4);border-radius:14px;padding:11px 18px;opacity:0;pointer-events:none;transition:opacity 0.4s;backdrop-filter:blur(20px);white-space:nowrap;}
+#alert-banner.show{opacity:1;pointer-events:all;}
+.alert-txt{font-size:10px;color:var(--warn);letter-spacing:0.05em;}
+.abtn{font-family:'Syne',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:var(--void);background:var(--warn);border:none;padding:6px 13px;border-radius:20px;cursor:pointer;}
 
-    #meterContainer {
-      width: 80%;
-      height: 20px;
-      background: #333;
-      margin: 20px auto;
-      border-radius: 20px;
-      overflow: hidden;
-    }
+/* WELCOME */
+#screen-welcome{justify-content:space-between;padding:56px 22px 42px;}
+.badge{font-size:9px;letter-spacing:0.3em;text-transform:uppercase;color:var(--pulse);border:1px solid rgba(0,229,200,0.25);padding:5px 16px;border-radius:20px;background:rgba(0,229,200,0.05);}
+.hero{font-family:'DM Serif Display',serif;font-size:clamp(64px,17vw,100px);line-height:0.85;letter-spacing:-0.03em;text-align:center;}
+.hero em{font-style:italic;background:linear-gradient(135deg,var(--pulse),var(--calm));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.sub-label{font-size:9px;color:var(--silver);letter-spacing:0.25em;text-transform:uppercase;}
 
-    #meter {
-      height: 100%;
-      width: 0%;
-      background: lime;
-      transition: width 0.1s linear;
-    }
+/* SENSOR TILES GRID */
+#live-sensors{width:100%;max-width:360px;display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.stile{background:rgba(255,255,255,0.025);border:1px solid var(--rim);border-radius:18px;padding:13px 14px;position:relative;overflow:hidden;cursor:pointer;transition:border-color 0.3s;}
+.stile.lit{border-color:rgba(0,229,200,0.35);}
+.stile-lbl{font-size:7px;letter-spacing:0.2em;text-transform:uppercase;color:var(--silver);margin-bottom:5px;}
+.stile-val{font-family:'DM Serif Display',serif;font-size:26px;color:var(--white);line-height:1;}
+.stile-unit{font-size:8px;color:var(--silver);margin-top:1px;}
+.stile-ico{position:absolute;top:11px;right:12px;font-size:16px;opacity:0.4;}
+.sbar{position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--rim);}
+.sbar-fill{height:100%;width:0%;border-radius:0 2px 2px 0;transition:width 0.25s ease,background 0.5s;}
+.sgraph{height:28px;margin-top:6px;display:flex;align-items:flex-end;gap:1px;}
+.gb{flex:1;background:rgba(0,229,200,0.3);border-radius:1px;min-height:2px;transition:height 0.15s ease;}
 
-    button {
-      padding: 15px 40px;
-      font-size: 18px;
-      border-radius: 30px;
-      border: none;
-      background: white;
-      color: black;
-      font-weight: bold;
-      margin-top: 20px;
-    }
+/* AGITATION BAR */
+#agit-section{width:100%;max-width:360px;background:rgba(255,255,255,0.025);border:1px solid var(--rim);border-radius:18px;padding:15px 18px;}
+.agit-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;}
+.agit-row span:first-child{font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--silver);}
+#agit-pct{font-family:'DM Serif Display',serif;font-size:18px;color:var(--white);}
+.agit-zones{display:flex;gap:3px;height:7px;border-radius:4px;overflow:hidden;margin-bottom:6px;}
+.az{flex:1;transition:opacity 0.3s;}.az1{background:var(--safe);}.az2{background:#88cc00;}.az3{background:var(--gold);}.az4{background:var(--warn);}.az5{background:var(--danger);}
+.az.dim{opacity:0.12;}
+.agit-needle-row{position:relative;height:10px;margin-bottom:6px;}
+#agit-needle{position:absolute;top:0;width:2px;height:10px;background:var(--white);border-radius:1px;transition:left 0.25s ease;left:0%;box-shadow:0 0 8px rgba(255,255,255,0.7);}
+.agit-state{font-family:'DM Serif Display',serif;font-size:18px;color:var(--white);}
 
-    #status {
-      margin-top: 20px;
-      font-size: 18px;
-    }
+/* CTA */
+.cta{font-family:'Syne',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--void);background:var(--pulse);border:none;padding:14px 38px;border-radius:50px;cursor:pointer;box-shadow:0 0 36px rgba(0,229,200,0.35);transition:transform 0.15s,box-shadow 0.15s;}
+.cta:active{transform:scale(0.95);}
+.skip-btn{font-size:10px;color:var(--mist);background:none;border:none;cursor:pointer;letter-spacing:0.1em;text-transform:uppercase;transition:color 0.2s;}
+.skip-btn:hover{color:var(--silver);}
 
-    #score {
-      margin-top: 10px;
-      font-size: 16px;
-      color: cyan;
-    }
-  </style>
+/* PERMISSION */
+#screen-permission{gap:18px;}
+.perm-title{font-family:'DM Serif Display',serif;font-size:clamp(26px,7vw,40px);line-height:1.1;text-align:center;}
+.perm-list{display:flex;flex-direction:column;gap:10px;width:100%;max-width:320px;}
+.pi{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.03);border:1px solid var(--rim);border-radius:14px;padding:12px 14px;}
+.pi-ico{font-size:22px;flex-shrink:0;}
+.pi-info{flex:1;}
+.pi-name{font-family:'Syne',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.05em;}
+.pi-desc{font-size:9px;color:var(--silver);margin-top:2px;line-height:1.4;}
+.pi-stat{font-size:9px;color:var(--silver);}
+.pi-stat.ok{color:var(--safe);}
+.pi-stat.no{color:var(--danger);}
+
+/* SCAN */
+#screen-scan{gap:16px;text-align:center;}
+.scan-title{font-family:'DM Serif Display',serif;font-size:clamp(26px,7vw,38px);}
+#scan-wrap{position:relative;width:240px;height:240px;}
+#scan-canvas{border-radius:50%;display:block;}
+.scan-ring{position:absolute;inset:-10px;border-radius:50%;border:1px solid rgba(0,229,200,0.2);animation:spin 8s linear infinite;}
+.scan-ring2{position:absolute;inset:-20px;border-radius:50%;border:1px dashed rgba(51,119,255,0.15);animation:spin 14s linear infinite reverse;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.scan-metrics{display:flex;gap:20px;}
+.sm{text-align:center;}
+.sm-val{font-family:'DM Serif Display',serif;font-size:26px;line-height:1;}
+.sm-key{font-size:8px;color:var(--silver);letter-spacing:0.15em;text-transform:uppercase;margin-top:2px;}
+.scan-status{font-size:10px;color:var(--silver);letter-spacing:0.05em;}
+
+/* SELECT */
+#screen-select{gap:16px;}
+.sel-lead{text-align:center;}
+.sel-lead h2{font-family:'DM Serif Display',serif;font-size:clamp(24px,6vw,36px);}
+.sel-lead p{font-size:10px;color:var(--silver);margin-top:3px;}
+.sel-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;max-width:360px;}
+.scard{background:rgba(255,255,255,0.025);border:1.5px solid var(--rim);border-radius:16px;padding:16px 13px;cursor:pointer;text-align:center;transition:all 0.25s;position:relative;overflow:hidden;}
+.scard::after{content:'';position:absolute;inset:0;background:var(--cc,var(--pulse));opacity:0;transition:opacity 0.3s;}
+.scard:hover::after,.scard:active::after{opacity:0.07;}
+.scard:active{transform:scale(0.96);}
+.scard.rec{border-color:rgba(0,229,200,0.5);background:rgba(0,229,200,0.04);}
+.s-ico{font-size:28px;margin-bottom:7px;}
+.s-name{font-family:'Syne',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;}
+.s-desc{font-size:9px;color:var(--silver);margin-top:3px;line-height:1.4;}
+.s-dur{font-size:8px;color:var(--pulse);margin-top:7px;letter-spacing:0.08em;}
+.rec-tag{position:absolute;top:7px;right:7px;font-size:7px;letter-spacing:0.12em;text-transform:uppercase;color:var(--pulse);background:rgba(0,229,200,0.15);padding:2px 7px;border-radius:10px;}
+
+/* TILT */
+#screen-tilt{gap:14px;text-align:center;}
+.tilt-title{font-family:'DM Serif Display',serif;font-size:clamp(26px,7vw,38px);}
+.tilt-sub{font-size:10px;color:var(--silver);max-width:280px;line-height:1.6;}
+#tilt-world{width:260px;height:260px;position:relative;display:flex;align-items:center;justify-content:center;}
+#tilt-horizon{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle,rgba(4,8,16,0.9) 40%,rgba(10,20,40,0.7));border:1px solid var(--rim);overflow:hidden;}
+#tilt-water{position:absolute;bottom:0;left:-20%;right:-20%;border-radius:50% 50% 0 0;background:linear-gradient(180deg,rgba(0,229,200,0.25),rgba(51,119,255,0.45));transition:height 0.3s ease,transform 0.2s ease;}
+#tilt-bubble{position:absolute;width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 35% 35%,rgba(0,229,200,0.9),rgba(51,119,255,0.6));box-shadow:0 0 18px rgba(0,229,200,0.5);transition:left 0.15s ease,top 0.15s ease;left:50%;top:50%;transform:translate(-50%,-50%);}
+.tring{position:absolute;border-radius:50%;border:1px solid rgba(0,229,200,0.15);}
+.tr1{width:60px;height:60px;left:50%;top:50%;transform:translate(-50%,-50%);}
+.tr2{width:120px;height:120px;left:50%;top:50%;transform:translate(-50%,-50%);}
+.tilt-cross-h{position:absolute;width:180px;height:1px;background:rgba(0,229,200,0.08);left:50%;top:50%;transform:translate(-50%,-50%);}
+.tilt-cross-v{position:absolute;width:1px;height:180px;background:rgba(0,229,200,0.08);left:50%;top:50%;transform:translate(-50%,-50%);}
+#tilt-ring{position:absolute;inset:-14px;border-radius:50%;border:2.5px solid transparent;border-top-color:var(--calm);transition:border-color 0.5s;}
+#tilt-ring.inhale{animation:spin 4s linear infinite;border-top-color:var(--calm);}
+#tilt-ring.hold{animation:none;border-color:rgba(0,229,200,0.4);}
+#tilt-ring.exhale{animation:spin 8s linear infinite;border-top-color:var(--safe);}
+#tilt-inst{font-family:'DM Serif Display',serif;font-size:24px;}
+.tilt-prog{font-size:9px;color:var(--silver);letter-spacing:0.2em;text-transform:uppercase;}
+
+/* MIC */
+#screen-mic{gap:14px;text-align:center;}
+.mic-title{font-family:'DM Serif Display',serif;font-size:clamp(26px,7vw,38px);}
+.mic-sub{font-size:10px;color:var(--silver);max-width:290px;line-height:1.6;}
+#calm-gauge{width:100%;max-width:320px;background:rgba(255,255,255,0.025);border:1px solid var(--rim);border-radius:16px;padding:14px 18px;}
+.cg-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;}
+.cg-row span{font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--silver);}
+#calm-score-val{font-family:'DM Serif Display',serif;font-size:20px;color:var(--pulse);}
+.calm-track{height:5px;background:var(--rim);border-radius:3px;overflow:hidden;}
+#calm-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--danger),var(--gold),var(--safe));transition:width 0.4s ease;border-radius:3px;}
+#calm-hint{font-size:9px;color:var(--silver);margin-top:7px;letter-spacing:0.05em;}
+#calm-verdict{font-family:'DM Serif Display',serif;font-size:20px;min-height:24px;}
+
+/* TAP */
+#screen-tap{gap:14px;text-align:center;}
+.tap-title{font-family:'DM Serif Display',serif;font-size:clamp(26px,7vw,38px);}
+.tap-sub{font-size:10px;color:var(--silver);max-width:280px;line-height:1.6;}
+#tap-canvas{width:300px;height:190px;border-radius:18px;border:1px solid var(--rim);background:rgba(255,255,255,0.02);display:block;cursor:crosshair;}
+.tap-fb{font-family:'DM Serif Display',serif;font-size:20px;min-height:26px;}
+.rguide{display:flex;gap:7px;justify-content:center;}
+.rbeat{width:9px;height:9px;border-radius:50%;background:var(--rim);border:1px solid var(--mist);transition:all 0.15s;}
+.rbeat.active{background:var(--pulse);box-shadow:0 0 10px var(--pulse);transform:scale(1.4);}
+.rbeat.hit{background:var(--safe);box-shadow:0 0 8px var(--safe);}
+
+/* SWIPE */
+#screen-swipe{gap:16px;}
+.sw-title{font-family:'DM Serif Display',serif;font-size:clamp(26px,7vw,38px);text-align:center;}
+.sw-sub{font-size:10px;color:var(--silver);letter-spacing:0.08em;text-align:center;}
+#tstack{position:relative;width:300px;height:165px;}
+.tcard{position:absolute;inset:0;background:rgba(255,255,255,0.035);border:1.5px solid var(--rim);border-radius:22px;padding:20px 22px;display:flex;flex-direction:column;justify-content:center;}
+.tcard.top{z-index:5;cursor:grab;touch-action:none;}
+.tcard.b1{z-index:4;transform:rotate(2.5deg) scale(0.96);opacity:0.45;}
+.tcard.b2{z-index:3;transform:rotate(-2deg) scale(0.92);opacity:0.22;}
+.t-text{font-family:'DM Serif Display',serif;font-size:16px;line-height:1.5;color:var(--ghost);}
+.t-tag{margin-top:9px;font-size:8px;letter-spacing:0.15em;text-transform:uppercase;color:var(--silver);}
+.sw-trail{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:300px;}
+.sw-chip{font-size:8px;letter-spacing:0.1em;text-transform:uppercase;color:var(--safe);background:rgba(0,204,119,0.1);border:1px solid rgba(0,204,119,0.25);padding:3px 10px;border-radius:20px;animation:fpop 0.3s ease;}
+@keyframes fpop{from{transform:scale(0.7);opacity:0}to{transform:scale(1);opacity:1}}
+#sw-arrow{font-size:22px;letter-spacing:-6px;color:var(--silver);animation:abounce 2s ease-in-out infinite;}
+@keyframes abounce{0%,100%{transform:translateX(0)}50%{transform:translateX(5px)}}
+
+/* DONE */
+#screen-done{text-align:center;gap:18px;}
+.done-glow{width:80px;height:80px;border-radius:50%;background:rgba(0,204,119,0.12);border:2px solid rgba(0,204,119,0.4);display:flex;align-items:center;justify-content:center;font-size:38px;animation:pop 0.5s cubic-bezier(0.34,1.56,0.64,1);box-shadow:0 0 50px rgba(0,204,119,0.2);}
+@keyframes pop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+.done-title{font-family:'DM Serif Display',serif;font-size:clamp(38px,10vw,60px);line-height:0.9;}
+.done-title em{font-style:italic;background:linear-gradient(135deg,var(--pulse),var(--calm));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.done-msg{font-size:11px;color:var(--silver);line-height:1.8;max-width:280px;}
+.done-stats{display:flex;gap:24px;}
+.ds-val{font-family:'DM Serif Display',serif;font-size:32px;color:var(--pulse);}
+.ds-key{font-size:8px;color:var(--silver);letter-spacing:0.15em;text-transform:uppercase;}
+.done-btns{display:flex;flex-direction:column;gap:10px;align-items:center;}
+.btn2{font-family:'Syne',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:var(--silver);background:transparent;border:1px solid var(--rim);padding:11px 28px;border-radius:50px;cursor:pointer;transition:all 0.2s;}
+.btn2:hover{color:var(--white);border-color:var(--silver);}
+
+@keyframes fu{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+.screen.active>*{animation:fu 0.42s ease both;}
+.screen.active>*:nth-child(1){animation-delay:0.04s}
+.screen.active>*:nth-child(2){animation-delay:0.08s}
+.screen.active>*:nth-child(3){animation-delay:0.12s}
+.screen.active>*:nth-child(4){animation-delay:0.16s}
+.screen.active>*:nth-child(5){animation-delay:0.20s}
+.screen.active>*:nth-child(6){animation-delay:0.24s}
+.screen.active>*:nth-child(7){animation-delay:0.28s}
+</style>
 </head>
 <body>
+<canvas id="bg-canvas"></canvas>
 
-<h1>PulseHold</h1>
-<p>Hold to Stabilize the Pulse</p>
-
-<div id="pulseCircle"></div>
-
-<div id="meterContainer">
-  <div id="meter"></div>
+<div id="sensor-hud">
+  <div class="hud-s"><div class="hdot" id="hd-motion"></div><span>Motion</span></div>
+  <div class="hud-s"><div class="hdot" id="hd-gyro"></div><span>Gyro</span></div>
+  <div class="hud-s"><div class="hdot" id="hd-mic"></div><span>Mic</span></div>
+  <div class="hud-s"><div class="hdot" id="hd-touch"></div><span>Touch</span></div>
 </div>
 
-<button id="holdBtn">HOLD</button>
+<div id="alert-banner">
+  <span>⚡</span>
+  <span class="alert-txt" id="alert-txt">Elevated agitation detected</span>
+  <button class="abtn" onclick="showScreen('screen-select')">RESET</button>
+</div>
 
-<p id="status">Ready</p>
-<p id="score">Score: 0</p>
+<!-- WELCOME -->
+<div id="screen-welcome" class="screen active">
+  <div class="badge">On-Call Medical · Live Sensor Reset</div>
+  <h1 class="hero">SHIFT<br><em>Reset.</em></h1>
+  <p class="sub-label">60-second biometric micro-intervention</p>
+
+  <div id="live-sensors">
+    <div class="stile" id="stile-accel">
+      <div class="stile-ico">📳</div>
+      <div class="stile-lbl">Agitation</div>
+      <div class="stile-val" id="val-accel">—</div>
+      <div class="stile-unit">motion/s²</div>
+      <div class="sgraph" id="graph-accel"></div>
+      <div class="sbar"><div class="sbar-fill" id="bar-accel" style="background:var(--safe)"></div></div>
+    </div>
+    <div class="stile" id="stile-gyro">
+      <div class="stile-ico">🌀</div>
+      <div class="stile-lbl">Tilt / Balance</div>
+      <div class="stile-val" id="val-gyro">—°</div>
+      <div class="stile-unit">device tilt</div>
+      <div class="sgraph" id="graph-gyro"></div>
+      <div class="sbar"><div class="sbar-fill" id="bar-gyro" style="background:var(--calm)"></div></div>
+    </div>
+    <div class="stile" id="stile-touch">
+      <div class="stile-ico">✋</div>
+      <div class="stile-lbl">Touch Stress</div>
+      <div class="stile-val" id="val-touch">Tap →</div>
+      <div class="stile-unit">tap pressure</div>
+      <div class="sgraph" id="graph-touch"></div>
+      <div class="sbar"><div class="sbar-fill" id="bar-touch" style="background:var(--violet)"></div></div>
+    </div>
+    <div class="stile" id="stile-mic">
+      <div class="stile-ico">🎙️</div>
+      <div class="stile-lbl">Voice Calm</div>
+      <div class="stile-val" id="val-mic">Tap→</div>
+      <div class="stile-unit">tap to enable</div>
+      <div class="sgraph" id="graph-mic"></div>
+      <div class="sbar"><div class="sbar-fill" id="bar-mic" style="background:var(--gold)"></div></div>
+    </div>
+  </div>
+
+  <div id="agit-section">
+    <div class="agit-row"><span>Nervous System State</span><span id="agit-pct">0%</span></div>
+    <div class="agit-zones">
+      <div class="az az1 dim" id="az1"></div><div class="az az2 dim" id="az2"></div>
+      <div class="az az3 dim" id="az3"></div><div class="az az4 dim" id="az4"></div>
+      <div class="az az5 dim" id="az5"></div>
+    </div>
+    <div class="agit-needle-row"><div id="agit-needle"></div></div>
+    <div class="agit-state" id="agit-state">Calibrating…</div>
+  </div>
+  <button class="cta" onclick="showScreen('screen-permission')">ACTIVATE SENSORS →</button>
+</div>
+
+<!-- PERMISSION -->
+<div id="screen-permission" class="screen">
+  <h2 class="perm-title">Enable your<br><em style="font-style:italic;background:linear-gradient(135deg,var(--pulse),var(--calm));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">sensors</em></h2>
+  <p style="font-size:10px;color:var(--silver);text-align:center;max-width:280px">Grant access so SHIFT can read your body state in real time — no data leaves your device</p>
+  <div class="perm-list">
+    <div class="pi"><div class="pi-ico">📳</div><div class="pi-info"><div class="pi-name">Accelerometer</div><div class="pi-desc">Detects agitated movement & restlessness</div></div><div class="pi-stat" id="ps-acc">Pending</div></div>
+    <div class="pi"><div class="pi-ico">🌀</div><div class="pi-info"><div class="pi-name">Gyroscope</div><div class="pi-desc">Powers tilt-guided breathing exercise</div></div><div class="pi-stat" id="ps-gyr">Pending</div></div>
+    <div class="pi"><div class="pi-ico">🎙️</div><div class="pi-info"><div class="pi-name">Microphone</div><div class="pi-desc">Biofeedback for humming calm exercise</div></div><div class="pi-stat" id="ps-mic">Pending</div></div>
+    <div class="pi"><div class="pi-ico">✋</div><div class="pi-info"><div class="pi-name">Touch Pressure</div><div class="pi-desc">Reads tap force to detect tension</div></div><div class="pi-stat ok" id="ps-tch">Active</div></div>
+  </div>
+  <button class="cta" onclick="requestAllSensors()">GRANT ACCESS</button>
+  <button class="skip-btn" onclick="skipPerm()">Skip → Use simulation</button>
+</div>
+
+<!-- SCAN -->
+<div id="screen-scan" class="screen">
+  <p style="font-size:8px;letter-spacing:0.3em;text-transform:uppercase;color:var(--silver)">Biometric Snapshot</p>
+  <h2 class="scan-title">Reading your<br>state…</h2>
+  <div id="scan-wrap">
+    <canvas id="scan-canvas" width="240" height="240"></canvas>
+    <div class="scan-ring"></div><div class="scan-ring2"></div>
+  </div>
+  <div class="scan-metrics">
+    <div class="sm"><div class="sm-val" id="sm-ag" style="color:var(--danger)">--</div><div class="sm-key">Agitation</div></div>
+    <div class="sm"><div class="sm-val" id="sm-cm" style="color:var(--pulse)">--</div><div class="sm-key">Calm</div></div>
+    <div class="sm"><div class="sm-val" id="sm-tn" style="color:var(--gold)">--</div><div class="sm-key">Tension</div></div>
+  </div>
+  <p class="scan-status" id="scan-status">Hold still for 5 seconds…</p>
+  <button class="cta" id="scan-go" style="display:none" onclick="showScreen('screen-select')">SEE RECOMMENDATIONS →</button>
+</div>
+
+<!-- SELECT -->
+<div id="screen-select" class="screen">
+  <div class="sel-lead">
+    <p style="font-size:8px;color:var(--silver);letter-spacing:0.2em;text-transform:uppercase">AI Recommendation</p>
+    <h2>Choose your reset</h2>
+    <p id="sel-ctx">Based on your sensor data</p>
+  </div>
+  <div class="sel-grid">
+    <div class="scard" id="sc-tilt" onclick="showScreen('screen-tilt')" style="--cc:var(--calm)">
+      <div class="s-ico">🌊</div><div class="s-name">Tilt Breathe</div>
+      <div class="s-desc">Tilt phone to control inhale/exhale via gyroscope</div>
+      <div class="s-dur">90s · Gyro-guided</div>
+    </div>
+    <div class="scard" id="sc-mic" onclick="showScreen('screen-mic')" style="--cc:var(--violet)">
+      <div class="s-ico">🎙️</div><div class="s-name">Hum Calm</div>
+      <div class="s-desc">Microphone biofeedback from your humming tone</div>
+      <div class="s-dur">60s · Audio biofeedback</div>
+    </div>
+    <div class="scard" id="sc-tap" onclick="showScreen('screen-tap')" style="--cc:var(--pulse)">
+      <div class="s-ico">🥁</div><div class="s-name">Pressure Tap</div>
+      <div class="s-desc">Rhythm tap using touch force sensor data</div>
+      <div class="s-dur">60s · Haptic bilateral</div>
+    </div>
+    <div class="scard" id="sc-swipe" onclick="showScreen('screen-swipe')" style="--cc:var(--gold)">
+      <div class="s-ico">🃏</div><div class="s-name">Swipe Away</div>
+      <div class="s-desc">Fling intrusive thoughts off screen physically</div>
+      <div class="s-dur">45s · Gesture release</div>
+    </div>
+  </div>
+</div>
+
+<!-- TILT BREATHE -->
+<div id="screen-tilt" class="screen">
+  <p style="font-size:8px;letter-spacing:0.3em;text-transform:uppercase;color:var(--silver)">Gyroscope Breathing</p>
+  <h2 class="tilt-title">Tilt to Breathe</h2>
+  <p class="tilt-sub">Tilt phone FORWARD = inhale &nbsp;·&nbsp; Tilt BACK = exhale<br>The water level shows your breath depth</p>
+  <div id="tilt-world">
+    <div id="tilt-horizon"><div id="tilt-water"></div></div>
+    <div class="tilt-cross-h"></div><div class="tilt-cross-v"></div>
+    <div class="tring tr1"></div><div class="tring tr2"></div>
+    <div id="tilt-bubble"></div>
+    <div id="tilt-ring"></div>
+  </div>
+  <h3 id="tilt-inst">Tilt your phone gently</h3>
+  <p class="tilt-prog" id="tilt-prog">0 / 5 breaths</p>
+  <button class="skip-btn" onclick="showScreen('screen-done')">Finish early →</button>
+</div>
+
+<!-- MIC CALM -->
+<div id="screen-mic" class="screen">
+  <p style="font-size:8px;letter-spacing:0.3em;text-transform:uppercase;color:var(--silver)">Microphone Biofeedback</p>
+  <h2 class="mic-title">Hum Your Calm</h2>
+  <p class="mic-sub">Hum "Mmmmm…" steadily for 5 seconds.<br>The mic tracks your tone — watch your calm score build.</p>
+  <canvas id="mic-canvas" width="310" height="110" style="width:310px;height:110px;border-radius:14px;border:1px solid var(--rim);display:block;"></canvas>
+  <div id="calm-gauge">
+    <div class="cg-row"><span>Calm Score</span><span id="calm-score-val">0%</span></div>
+    <div class="calm-track"><div id="calm-fill"></div></div>
+    <div id="calm-hint">Start humming to activate…</div>
+  </div>
+  <p id="calm-verdict"></p>
+  <button class="cta" id="mic-done-btn" style="display:none" onclick="showScreen('screen-done')">DONE ✓</button>
+  <button class="skip-btn" onclick="showScreen('screen-done')">Skip →</button>
+</div>
+
+<!-- PRESSURE TAP -->
+<div id="screen-tap" class="screen">
+  <p style="font-size:8px;letter-spacing:0.3em;text-transform:uppercase;color:var(--silver)">Touch Pressure Rhythm</p>
+  <h2 class="tap-title">Tap the Beat</h2>
+  <p class="tap-sub">Tap the pad in time with the lights. Lighter taps = calmer nervous system. See your pressure ripples.</p>
+  <canvas id="tap-canvas" width="300" height="190"></canvas>
+  <p class="tap-fb" id="tap-fb">Tap anywhere on the pad</p>
+  <div class="rguide" id="rguide"></div>
+  <button class="cta" id="tap-done-btn" style="display:none" onclick="showScreen('screen-done')">COMPLETE ✓</button>
+  <button class="skip-btn" onclick="showScreen('screen-done')">Skip →</button>
+</div>
+
+<!-- SWIPE THOUGHTS -->
+<div id="screen-swipe" class="screen">
+  <h2 class="sw-title">Release Them</h2>
+  <p class="sw-sub">Swipe each thought off the screen — left or right</p>
+  <div id="tstack"></div>
+  <div class="sw-trail" id="sw-trail"></div>
+  <div id="sw-arrow">→→</div>
+  <button class="skip-btn" onclick="showScreen('screen-done')">Finish →</button>
+</div>
+
+<!-- DONE -->
+<div id="screen-done" class="screen">
+  <div class="done-glow">✨</div>
+  <h2 class="done-title">Reset<br><em>Complete.</em></h2>
+  <p class="done-msg" id="done-msg">Your nervous system has been given space to regulate. You handled it. Now back to being excellent.</p>
+  <div class="done-stats">
+    <div><div class="ds-val" id="d-time">—</div><div class="ds-key">Seconds</div></div>
+    <div><div class="ds-val" id="d-calm">—</div><div class="ds-key">Calm %</div></div>
+  </div>
+  <div class="done-btns">
+    <button class="cta" onclick="showScreen('screen-welcome')">Done ✓</button>
+    <button class="btn2" onclick="showScreen('screen-select')">Another Reset</button>
+  </div>
+</div>
 
 <script>
-let meter = document.getElementById("meter");
-let circle = document.getElementById("pulseCircle");
-let statusText = document.getElementById("status");
-let scoreText = document.getElementById("score");
-let btn = document.getElementById("holdBtn");
+/* ======================================================
+   GLOBAL STATE
+   ====================================================== */
+const G = {
+  agitation:0, gyroTilt:0, calmScore:0, touchPressure:0,
+  accHist:new Array(20).fill(0), gyrHist:new Array(20).fill(0),
+  tchHist:new Array(20).fill(0), micHist:new Array(20).fill(0),
+  lastAcc:{x:0,y:0,z:0}, motionOk:false, micOk:false,
+  alertShown:false, sessionStart:Date.now(), breathCount:0
+};
 
-let stability = 0;
-let score = 0;
-let holdInterval = null;
-let unstableInterval = null;
-let isHolding = false;
+/* ======================================================
+   BG CANVAS — particle field reacts to agitation + calm
+   ====================================================== */
+const bgC=document.getElementById('bg-canvas');
+const bgX=bgC.getContext('2d');
+let pts=[];
 
-// Unstable pulse animation
-function startUnstablePulse() {
-  unstableInterval = setInterval(() => {
-    if (!isHolding) {
-      let randomSize = 140 + Math.random() * 30;
-      circle.style.width = randomSize + "px";
-      circle.style.height = randomSize + "px";
-      circle.style.background = "red";
-      circle.style.boxShadow = "0 0 40px red";
-    }
-  }, 150);
+function resizeBg(){
+  bgC.width=window.innerWidth; bgC.height=window.innerHeight;
+  pts=[];
+  for(let i=0;i<90;i++) pts.push({
+    x:Math.random()*bgC.width, y:Math.random()*bgC.height,
+    vx:(Math.random()-.5).4, vy:(Math.random()-.5).4,
+    r:Math.random()*1.5+.5, ph:Math.random()*Math.PI*2
+  });
 }
 
-// Start holding
-function startHold(e) {
-  e.preventDefault();
-  if (holdInterval) return;
+function drawBg(t){
+  const W=bgC.width,H=bgC.height;
+  bgX.clearRect(0,0,W,H);
+  const ag=G.agitation,cl=G.calmScore;
+  const g=bgX.createRadialGradient(W/2,H,0,W/2,H/2,H);
+  g.addColorStop(0,ag>.5?'rgba(35,8,3,.9)':'rgba(5,12,30,.9)');
+  g.addColorStop(1,'rgba(4,8,16,1)');
+  bgX.fillStyle=g; bgX.fillRect(0,0,W,H);
 
-  isHolding = true;
-  statusText.innerText = "Stabilizing...";
-
-  holdInterval = setInterval(() => {
-    if (stability >= 100) {
-      clearInterval(holdInterval);
-      holdInterval = null;
-      score++;
-      scoreText.innerText = "Score: " + score;
-      statusText.innerText = "Pulse Stabilized!";
-      circle.style.background = "lime";
-      circle.style.boxShadow = "0 0 40px lime";
-      setTimeout(resetGame, 1500);
-    } else {
-      stability += 2;
-      meter.style.width = stability + "%";
-      circle.style.width = "150px";
-      circle.style.height = "150px";
-      circle.style.background = "orange";
-      circle.style.boxShadow = "0 0 40px orange";
+  const speed=.35+ag*2.5;
+  for(const p of pts){
+    p.x+=p.vx*speed+G.gyroTilt*.3;
+    p.y+=p.vy*speed;
+    if(p.x<0)p.x=W; if(p.x>W)p.x=0;
+    if(p.y<0)p.y=H; if(p.y>H)p.y=0;
+    const a=.12+.12*Math.sin(t*.0008+p.ph)+ag*.25;
+    const r=ag>.5?rgba(255,${100-ag*80|0},${40-ag*30|0},${a})
+                 :rgba(${30+cl*70|0},${140+cl*70|0},${200+cl*50|0},${a});
+    bgX.beginPath(); bgX.arc(p.x,p.y,p.r*(1+ag*.4),0,Math.PI*2);
+    bgX.fillStyle=r; bgX.fill();
+  }
+  if(cl>.25){
+    for(let i=0;i<pts.length;i++) for(let j=i+1;j<pts.length;j++){
+      const d=Math.hypot(pts[i].x-pts[j].x,pts[i].y-pts[j].y);
+      if(d<90){ bgX.beginPath(); bgX.moveTo(pts[i].x,pts[i].y); bgX.lineTo(pts[j].x,pts[j].y);
+        bgX.strokeStyle=rgba(0,229,200,${(1-d/90)*cl*.12}); bgX.lineWidth=.5; bgX.stroke(); }
     }
-  }, 50);
+  }
+  requestAnimationFrame(drawBg);
+}
+resizeBg(); window.addEventListener('resize',resizeBg); requestAnimationFrame(drawBg);
+
+/* ======================================================
+   GRAPH HELPERS
+   ====================================================== */
+function buildGraph(id,n=20){
+  const c=document.getElementById(id); if(!c)return;
+  c.innerHTML='';
+  for(let i=0;i<n;i++){const b=document.createElement('div');b.className='gb';b.style.height='2px';c.appendChild(b);}
+}
+function updateGraph(id,hist){
+  const c=document.getElementById(id);if(!c)return;
+  const bars=c.querySelectorAll('.gb');
+  const mx=Math.max(...hist,.01);
+  bars.forEach((b,i)=>b.style.height=(hist[i]/mx*28)+'px');
+}
+['accel','gyro','touch','mic'].forEach(k=>buildGraph('graph-'+k));
+
+/* ======================================================
+   SCREEN MANAGER
+   ====================================================== */
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if(id==='screen-scan') startScan();
+  if(id==='screen-tilt') startTilt();
+  if(id==='screen-mic')  startMicScreen();
+  if(id==='screen-tap')  startTapExercise();
+  if(id==='screen-swipe') initSwipe();
+  if(id==='screen-done') finishSession();
 }
 
-// Stop holding
-function stopHold() {
-  isHolding = false;
-  clearInterval(holdInterval);
-  holdInterval = null;
+/* ======================================================
+   SENSOR PERMISSION
+   ====================================================== */
+function requestAllSensors(){
+  initMotion(); initMic(); initTouch();
+  setTimeout(()=>showScreen('screen-scan'),1000);
+}
+function skipPerm(){ simulateMotion(); simulateMic(); initTouch(); showScreen('screen-scan'); }
 
-  if (stability < 100) {
-    stability = 0;
-    meter.style.width = "0%";
-    statusText.innerText = "Pulse Unstable!";
+/* ACCELEROMETER + GYROSCOPE */
+function initMotion(){
+  if(typeof DeviceMotionEvent!=='undefined'&&typeof DeviceMotionEvent.requestPermission==='function'){
+    DeviceMotionEvent.requestPermission().then(r=>{
+      if(r==='granted'){listenMotion();}else{simulateMotion();}
+    }).catch(()=>simulateMotion());
+  } else if(window.DeviceMotionEvent){ listenMotion(); }
+  else { simulateMotion(); }
+}
+
+function listenMotion(){
+  G.motionOk=true;
+  setHud('motion','on'); setHud('gyro','on');
+  setPS('acc','Active','ok'); setPS('gyr','Active','ok');
+  window.addEventListener('devicemotion',e=>{
+    const a=e.accelerationIncludingGravity||{};
+    const dx=Math.abs((a.x||0)-G.lastAcc.x),dy=Math.abs((a.y||0)-G.lastAcc.y),dz=Math.abs((a.z||0)-G.lastAcc.z);
+    G.lastAcc={x:a.x||0,y:a.y||0,z:a.z||0};
+    const jerk=Math.min(1,(dx+dy+dz)/14);
+    G.accHist.push(jerk); G.accHist.shift();
+    G.agitation=G.accHist.reduce((s,v)=>s+v,0)/G.accHist.length;
+    const disp=(dx+dy+dz).toFixed(1);
+    document.getElementById('val-accel').textContent=disp;
+    document.getElementById('bar-accel').style.width=(G.agitation*100)+'%';
+    document.getElementById('bar-accel').style.background=G.agitation>.5?'var(--danger)':G.agitation>.25?'var(--gold)':'var(--safe)';
+    updateGraph('graph-accel',G.accHist);
+    refreshAgitationUI(); checkAlert();
+  });
+  window.addEventListener('deviceorientation',e=>{
+    G.gyroTilt=e.beta||0;
+    const tilt=Math.abs(G.gyroTilt);
+    G.gyrHist.push(Math.min(1,tilt/50)); G.gyrHist.shift();
+    document.getElementById('val-gyro').textContent=Math.round(tilt)+'°';
+    document.getElementById('bar-gyro').style.width=(Math.min(1,tilt/60)*100)+'%';
+    updateGraph('graph-gyro',G.gyrHist);
+  });
+}
+
+function simulateMotion(){
+  setHud('motion','warn'); setHud('gyro','warn');
+  setPS('acc','Simulated',''); setPS('gyr','Simulated','');
+  let t=0;
+  setInterval(()=>{
+    t+=.04;
+    const j=.1+.08*Math.sin(t)+.06*Math.sin(t*2.3)+Math.random()*.04;
+    G.accHist.push(j); G.accHist.shift();
+    G.agitation=G.accHist.reduce((s,v)=>s+v,0)/G.accHist.length;
+    document.getElementById('val-accel').textContent=(j*14).toFixed(1);
+    document.getElementById('bar-accel').style.width=(G.agitation*100)+'%';
+    document.getElementById('bar-accel').style.background=G.agitation>.5?'var(--danger)':G.agitation>.25?'var(--gold)':'var(--safe)';
+    updateGraph('graph-accel',G.accHist);
+    G.gyroTilt=18*Math.sin(t*.4);
+    const tilt=Math.abs(G.gyroTilt);
+    G.gyrHist.push(Math.min(1,tilt/50)); G.gyrHist.shift();
+    document.getElementById('val-gyro').textContent=Math.round(tilt)+'°';
+    document.getElementById('bar-gyro').style.width=(tilt/60*100)+'%';
+    updateGraph('graph-gyro',G.gyrHist);
+    refreshAgitationUI(); checkAlert();
+  },120);
+}
+
+/* MIC */
+let audioCtx,analyser,micRunning=false;
+function initMic(){
+  navigator.mediaDevices.getUserMedia({audio:true}).then(stream=>{
+    audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    analyser=audioCtx.createAnalyser(); analyser.fftSize=256;
+    const src=audioCtx.createMediaStreamSource(stream);
+    src.connect(analyser);
+    G.micOk=true;
+    setHud('mic','on'); setPS('mic','Active','ok');
+    document.getElementById('val-mic').textContent='Live';
+    document.getElementById('stile-mic').classList.add('lit');
+    runMicMonitor();
+  }).catch(()=>{ setPS('mic','Denied','no'); simulateMic(); });
+}
+function runMicMonitor(){
+  if(!analyser||micRunning)return; micRunning=true;
+  const data=new Uint8Array(analyser.frequencyBinCount);
+  function loop(){
+    analyser.getByteFrequencyData(data);
+    const vol=data.reduce((s,v)=>s+v,0)/data.length/255;
+    G.micHist.push(vol); G.micHist.shift();
+    const avg=G.micHist.reduce((s,v)=>s+v,0)/G.micHist.length;
+    G.calmScore=Math.min(1,avg*5);
+    document.getElementById('val-mic').textContent=Math.round(avg*100)+'%';
+    document.getElementById('bar-mic').style.width=(G.calmScore*100)+'%';
+    document.getElementById('bar-mic').style.background=G.calmScore>.6?'var(--safe)':G.calmScore>.3?'var(--gold)':'var(--violet)';
+    updateGraph('graph-mic',G.micHist.map(v=>v*12));
+    requestAnimationFrame(loop);
+  }
+  loop();
+}
+function simulateMic(){
+  setHud('mic','warn'); setPS('mic','Simulated','');
+  let t=0;
+  setInterval(()=>{
+    t+=.06;
+    const v=.04+.03*Math.sin(t*.5)+Math.random()*.015;
+    G.micHist.push(v); G.micHist.shift();
+    const avg=G.micHist.reduce((s,v2)=>s+v2,0)/G.micHist.length;
+    G.calmScore=Math.min(1,avg*5);
+    document.getElementById('val-mic').textContent=Math.round(avg*100)+'%';
+    document.getElementById('bar-mic').style.width=(G.calmScore*100)+'%';
+    updateGraph('graph-mic',G.micHist.map(v=>v*12));
+  },150);
+}
+
+/* TOUCH PRESSURE */
+function initTouch(){
+  setHud('touch','on');
+  document.getElementById('stile-touch').classList.add('lit');
+  const handleTouch=(e,force=null)=>{
+    const f=force!==null?force:((e.touches?.[0]?.force||e.touches?.[0]?.webkitForce)||.3+Math.random()*.4);
+    G.tchHist.push(f); G.tchHist.shift();
+    G.touchPressure=G.tchHist.reduce((s,v)=>s+v,0)/G.tchHist.length;
+    document.getElementById('val-touch').textContent=(f*100).toFixed(0)+'%';
+    document.getElementById('bar-touch').style.width=(G.touchPressure*100)+'%';
+    document.getElementById('bar-touch').style.background=G.touchPressure>.6?'var(--danger)':G.touchPressure>.35?'var(--gold)':'var(--violet)';
+    updateGraph('graph-touch',G.tchHist);
+  };
+  document.getElementById('stile-touch').addEventListener('touchstart',e=>handleTouch(e),{passive:true});
+  document.getElementById('stile-touch').addEventListener('mousedown',e=>handleTouch(e,.3+Math.random()*.4));
+}
+
+/* ======================================================
+   AGITATION UI
+   ====================================================== */
+function refreshAgitationUI(){
+  const a=G.agitation,pct=Math.round(a*100);
+  document.getElementById('agit-pct').textContent=pct+'%';
+  document.getElementById('agit-needle').style.left=calc(${pct}% - 1px);
+  const az=Math.ceil(a*5)||1;
+  [1,2,3,4,5].forEach(z=>document.getElementById('az'+z).classList.toggle('dim',z>az));
+  const states=['Centred','Mild Tension','Activated','High Stress','Crisis Mode'];
+  document.getElementById('agit-state').textContent=states[Math.min(4,Math.floor(a*5))];
+  if(a>.55) setHud('motion','hot');
+  else if(a>.28) setHud('motion','warn');
+  else setHud('motion','on');
+}
+function checkAlert(){
+  if(G.agitation>.6&&!G.alertShown){
+    G.alertShown=true;
+    document.getElementById('alert-txt').textContent='High agitation — intervention recommended';
+    document.getElementById('alert-banner').classList.add('show');
+    setTimeout(()=>{document.getElementById('alert-banner').classList.remove('show');G.alertShown=false;},5000);
   }
 }
-
-// Reset game
-function resetGame() {
-  stability = 0;
-  meter.style.width = "0%";
-  statusText.innerText = "Ready";
+function setHud(k,cls){
+  const m={motion:'hd-motion',gyro:'hd-gyro',mic:'hd-mic',touch:'hd-touch'};
+  const el=document.getElementById(m[k]);
+  if(el){el.className='hdot';if(cls)el.classList.add(cls);}
+}
+function setPS(k,txt,cls){
+  const m={acc:'ps-acc',gyr:'ps-gyr',mic:'ps-mic',tch:'ps-tch'};
+  const el=document.getElementById(m[k]);
+  if(el){el.textContent=txt;el.className='pi-stat';if(cls)el.classList.add(cls);}
 }
 
-btn.addEventListener("mousedown", startHold);
-btn.addEventListener("mouseup", stopHold);
-btn.addEventListener("mouseleave", stopHold);
+/* ======================================================
+   BIOMETRIC SCAN
+   ====================================================== */
+let scanCtx2,scanStart,scanDone=false;
+function startScan(){
+  scanCtx2=document.getElementById('scan-canvas').getContext('2d');
+  scanStart=Date.now(); scanDone=false;
+  document.getElementById('scan-go').style.display='none';
+  document.getElementById('scan-status').textContent='Hold still for 5 seconds…';
+  ['sm-ag','sm-cm','sm-tn'].forEach(id=>document.getElementById(id).textContent='--');
+  drawScan();
+}
+function drawScan(){
+  if(!scanCtx2)return;
+  const W=240,H=240,cx=120,cy=120;
+  const elapsed=(Date.now()-scanStart)/1000;
+  const prog=Math.min(1,elapsed/5);
+  scanCtx2.clearRect(0,0,W,H);
+  scanCtx2.fillStyle='#040810'; scanCtx2.fillRect(0,0,W,H);
+  for(let r=18;r<120;r+=20){
+    scanCtx2.beginPath(); scanCtx2.arc(cx,cy,r,0,Math.PI*2);
+    scanCtx2.strokeStyle=rgba(0,229,200,${.04+.02*Math.sin(Date.now()*.002+r)});
+    scanCtx2.lineWidth=1; scanCtx2.stroke();
+  }
+  scanCtx2.beginPath(); scanCtx2.arc(cx,cy,115,-Math.PI/2,-Math.PI/2+prog*Math.PI*2);
+  const gg=scanCtx2.createLinearGradient(0,0,W,H);
+  gg.addColorStop(0,'#00e5c8'); gg.addColorStop(1,'#3377ff');
+  scanCtx2.strokeStyle=gg; scanCtx2.lineWidth=3; scanCtx2.stroke();
+  const ang=-Math.PI/2+elapsed*.8;
+  const sw=scanCtx2.createLinearGradient(cx,cy,cx+Math.cos(ang)*115,cy+Math.sin(ang)*115);
+  sw.addColorStop(0,'rgba(0,229,200,.35)'); sw.addColorStop(1,'rgba(0,229,200,0)');
+  scanCtx2.beginPath(); scanCtx2.moveTo(cx,cy);
+  scanCtx2.lineTo(cx+Math.cos(ang)*115,cy+Math.sin(ang)*115);
+  scanCtx2.strokeStyle=sw; scanCtx2.lineWidth=2; scanCtx2.stroke();
+  const blips=[[40,75],[95,48],[155,88],[78,158],[175,138],[118,108],[55,130],[145,60]];
+  blips.forEach(([bx,by])=>{
+    const bp=(Math.atan2(by-cy,bx-cx)+Math.PI/2+Math.PI*2)%(Math.PI*2);
+    const sa=(ang+Math.PI/2+Math.PI*2)%(Math.PI*2);
+    const df=(sa-bp+Math.PI*2)%(Math.PI*2);
+    if(df<.6){
+      const al=1-df/.6;
+      scanCtx2.beginPath(); scanCtx2.arc(bx,by,3,0,Math.PI*2);
+      scanCtx2.fillStyle=rgba(0,229,200,${al});
+      scanCtx2.shadowColor='rgba(0,229,200,.8)'; scanCtx2.shadowBlur=8;
+      scanCtx2.fill(); scanCtx2.shadowBlur=0;
+    }
+  });
+  if(prog>.5){
+    document.getElementById('sm-ag').textContent=Math.round(G.agitation*100)+'%';
+    document.getElementById('sm-cm').textContent=Math.round(G.calmScore*100||((1-G.agitation)*70))+'%';
+    document.getElementById('sm-tn').textContent=Math.round(G.touchPressure*100||G.agitation*55)+'%';
+  }
+  if(prog>=1&&!scanDone){
+    scanDone=true;
+    document.getElementById('scan-status').textContent='Scan complete — intervention ready ✓';
+    document.getElementById('scan-go').style.display='inline-block';
+    computeRec();
+  }
+  if(prog<1) requestAnimationFrame(drawScan);
+}
+function computeRec(){
+  let rec='sc-tilt';
+  if(G.agitation>.5) rec='sc-tilt';
+  else if(G.calmScore>.2) rec='sc-mic';
+  else if(G.touchPressure>.5) rec='sc-tap';
+  else rec='sc-swipe';
+  document.querySelectorAll('.scard').forEach(c=>{c.classList.remove('rec');const t=c.querySelector('.rec-tag');if(t)t.remove();});
+  const rc=document.getElementById(rec);
+  rc.classList.add('rec');
+  const tag=document.createElement('div'); tag.className='rec-tag'; tag.textContent='★ For you';
+  rc.appendChild(tag);
+  document.getElementById('sel-ctx').textContent=Agitation ${Math.round(G.agitation*100)}% · Calm ${Math.round(G.calmScore*100)||Math.round((1-G.agitation)*70)}%;
+}
 
-btn.addEventListener("touchstart", startHold);
-btn.addEventListener("touchend", stopHold);
+/* ======================================================
+   TILT BREATHE — gyroscope drives water level + phase
+   ====================================================== */
+let tiltPhase='idle',tiltBreaths=0,tiltRaf;
+const TILT_IN=10,TILT_OUT=-10;
 
-startUnstablePulse();
+function startTilt(){
+  tiltBreaths=0; tiltPhase='idle';
+  document.getElementById('tilt-inst').textContent='Tilt your phone gently';
+  document.getElementById('tilt-prog').textContent='0 / 5 breaths';
+  document.getElementById('tilt-ring').className='';
+  if(tiltRaf)cancelAnimationFrame(tiltRaf);
+  tiltLoop();
+}
+function tiltLoop(){
+  const beta=G.gyroTilt;
+  const water=document.getElementById('tilt-water');
+  const bubble=document.getElementById('tilt-bubble');
+  const TMAX=40;
+  const norm=Math.max(0,Math.min(1,(beta+TMAX)/(TMAX*2)));
+  water.style.height=(15+norm*200)+'px';
+  water.style.transform=rotate(${G.gyroTilt*.25}deg);
+  const bx=50+(-G.gyroTilt/TMAX)*28;
+  const by=50+(beta/TMAX)*18;
+  bubble.style.left=Math.max(18,Math.min(82,bx))+'%';
+  bubble.style.top=Math.max(18,Math.min(78,by))+'%';
+
+  const ring=document.getElementById('tilt-ring');
+  if(beta>TILT_IN&&tiltPhase==='idle'){
+    tiltPhase='inhale'; ring.className='inhale';
+    document.getElementById('tilt-inst').textContent='Inhale… 🌬';
+  } else if(beta<2&&beta>-2&&tiltPhase==='inhale'){
+    tiltPhase='hold'; ring.className='hold';
+    document.getElementById('tilt-inst').textContent='Hold… ⏸';
+  } else if(beta<TILT_OUT&&tiltPhase==='hold'){
+    tiltPhase='exhale'; ring.className='exhale';
+    document.getElementById('tilt-inst').textContent='Exhale… 😮‍💨';
+  } else if(beta>-2&&beta<2&&tiltPhase==='exhale'){
+    tiltPhase='idle'; ring.className='';
+    tiltBreaths++;
+    document.getElementById('tilt-inst').textContent=✓ Breath ${tiltBreaths} complete;
+    document.getElementById('tilt-prog').textContent=${tiltBreaths} / 5 breaths;
+    if(tiltBreaths>=5){showScreen('screen-done');return;}
+  }
+  tiltRaf=requestAnimationFrame(tiltLoop);
+}
+
+/* ======================================================
+   MIC CALM SCREEN — live waveform + calm build
+   ====================================================== */
+let micCtx2,micDraw=false,calmLvl=0;
+function startMicScreen(){
+  const c=document.getElementById('mic-canvas');
+  micCtx2=c.getContext('2d'); micDraw=true; calmLvl=0;
+  document.getElementById('mic-done-btn').style.display='none';
+  document.getElementById('calm-verdict').textContent='';
+  if(!G.micOk) initMic();
+  drawMicWave();
+}
+function drawMicWave(){
+  if(!micCtx2||!micDraw)return;
+  const W=310,H=110;
+  micCtx2.clearRect(0,0,W,H);
+  micCtx2.fillStyle='rgba(4,8,16,.7)'; micCtx2.fillRect(0,0,W,H);
+
+  // Animated waveform from mic history
+  micCtx2.beginPath();
+  G.micHist.forEach((v,i)=>{
+    const x=i/G.micHist.length*W;
+    const amp=v*H*7;
+    const y=H/2+amp*Math.sin(Date.now().006+i.6)+amp*.5*Math.sin(Date.now().003+i.3);
+    i===0?micCtx2.moveTo(x,y):micCtx2.lineTo(x,y);
+  });
+  const wg=micCtx2.createLinearGradient(0,0,W,0);
+  wg.addColorStop(0,'rgba(153,68,255,.85)');wg.addColorStop(.5,'rgba(0,229,200,.95)');wg.addColorStop(1,'rgba(51,119,255,.85)');
+  micCtx2.strokeStyle=wg; micCtx2.lineWidth=2.5; micCtx2.stroke();
+
+  // FFT bars if real analyser
+  if(analyser){
+    const data=new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteFrequencyData(data);
+    for(let i=0;i<28;i++){
+      const bh=data[i*2]/255*H*.65;
+      micCtx2.fillStyle='rgba(0,229,200,.2)';
+      micCtx2.fillRect(i*11+2,H-bh,7,bh);
+    }
+  }
+
+  // Calm detection: steady signal = humming
+  const avgVol=G.micHist.reduce((s,v)=>s+v,0)/G.micHist.length;
+  const active=G.micHist.filter(v=>v>.035).length>8;
+  if(active) calmLvl=Math.min(100,calmLvl+.7);
+  else calmLvl=Math.max(0,calmLvl-.3);
+
+  document.getElementById('calm-fill').style.width=calmLvl+'%';
+  document.getElementById('calm-score-val').textContent=Math.round(calmLvl)+'%';
+  const hints=['Start humming "Mmm…" — steady and low','Good! Keep the tone going…','Your nervous system is responding 🌊','Excellent — parasympathetic activated ✓'];
+  const hi=calmLvl<20?0:calmLvl<50?1:calmLvl<80?2:3;
+  document.getElementById('calm-hint').textContent=hints[hi];
+  if(calmLvl>=80){
+    document.getElementById('calm-verdict').textContent='Breathing regulated ✓';
+    document.getElementById('calm-verdict').style.color='var(--safe)';
+    document.getElementById('mic-done-btn').style.display='inline-block';
+  }
+  requestAnimationFrame(drawMicWave);
+}
+
+/* ======================================================
+   PRESSURE TAP — touch force visualized as ripples
+   ====================================================== */
+let tapCtx2,tapRipples=[],tapBeats=0,beatIntv,beatPh=0;
+function startTapExercise(){
+  const c=document.getElementById('tap-canvas');
+  tapCtx2=c.getContext('2d'); tapRipples=[]; tapBeats=0;
+  document.getElementById('tap-done-btn').style.display='none';
+  document.getElementById('tap-fb').textContent='Tap anywhere on the pad';
+
+  // Build beat guide
+  const rg=document.getElementById('rguide'); rg.innerHTML='';
+  for(let i=0;i<8;i++){const b=document.createElement('div');b.className='rbeat';b.id='rb'+i;rg.appendChild(b);}
+
+  clearInterval(beatIntv);
+  beatIntv=setInterval(()=>{
+    beatPh=(beatPh+1)%8;
+    document.querySelectorAll('.rbeat').forEach((b,i)=>b.classList.toggle('active',i===beatPh));
+  },400);
+
+  c.addEventListener('touchstart',tapTouchH,{passive:false});
+  c.addEventListener('mousedown',tapMouseH);
+  drawTapCanvas();
+}
+
+function tapMouseH(e){
+  const r=document.getElementById('tap-canvas').getBoundingClientRect();
+  processTap(e.clientX-r.left,e.clientY-r.top,.3+Math.random()*.45);
+}
+function tapTouchH(e){
+  e.preventDefault();
+  const r=document.getElementById('tap-canvas').getBoundingClientRect();
+  Array.from(e.changedTouches).forEach(t=>{
+    processTap(t.clientX-r.left,t.clientY-r.top,t.force||t.webkitForce||.35+Math.random()*.3);
+  });
+}
+function processTap(x,y,force){
+  tapBeats++;
+  G.tchHist.push(force); G.tchHist.shift();
+  G.touchPressure=G.tchHist.reduce((s,v)=>s+v,0)/G.tchHist.length;
+  tapRipples.push({x,y,r:4,maxR:force*220+50,a:1,force,t:Date.now()});
+
+  const fb=document.getElementById('tap-fb');
+  if(force<.3){fb.textContent='Beautiful — so light ✨';fb.style.color='var(--safe)';}
+  else if(force<.6){fb.textContent='Good rhythm 🌊';fb.style.color='var(--pulse)';}
+  else{fb.textContent='Ease off — go lighter 🌿';fb.style.color='var(--warn)';}
+
+  document.getElementById('rb'+beatPh)?.classList.add('hit');
+  setTimeout(()=>document.getElementById('rb'+beatPh)?.classList.remove('hit'),280);
+
+  if(tapBeats>=16){
+    clearInterval(beatIntv);
+    document.getElementById('tap-done-btn').style.display='inline-block';
+    fb.textContent='Rhythm complete — grounded 🌿';
+    fb.style.color='var(--safe)';
+  }
+}
+function drawTapCanvas(){
+  if(!tapCtx2)return;
+  const W=300,H=190;
+  tapCtx2.clearRect(0,0,W,H);
+  tapCtx2.fillStyle='rgba(4,8,16,.96)'; tapCtx2.fillRect(0,0,W,H);
+  // Grid
+  tapCtx2.strokeStyle='rgba(26,36,54,.7)'; tapCtx2.lineWidth=1;
+  for(let x=0;x<=W;x+=30){tapCtx2.beginPath();tapCtx2.moveTo(x,0);tapCtx2.lineTo(x,H);tapCtx2.stroke();}
+  for(let y=0;y<=H;y+=30){tapCtx2.beginPath();tapCtx2.moveTo(0,y);tapCtx2.lineTo(W,y);tapCtx2.stroke();}
+  // Ripples
+  const now=Date.now();
+  tapRipples=tapRipples.filter(r=>r.a>.01);
+  tapRipples.forEach(rp=>{
+    const el=(now-rp.t)/1000;
+    rp.r=5+el*rp.maxR*1.6; rp.a=Math.max(0,1-el*1.4);
+    const col=rp.force<.3?'0,229,200':rp.force<.6?'255,187,0':'255,60,32';
+    // Ripple ring
+    tapCtx2.beginPath(); tapCtx2.arc(rp.x,rp.y,rp.r,0,Math.PI*2);
+    tapCtx2.strokeStyle=rgba(${col},${rp.a*.6}); tapCtx2.lineWidth=1.5; tapCtx2.stroke();
+    // Inner glow
+    if(rp.r<30){
+      tapCtx2.beginPath(); tapCtx2.arc(rp.x,rp.y,8-el*12,0,Math.PI*2);
+      tapCtx2.fillStyle=rgba(${col},${rp.a*.8}); tapCtx2.fill();
+    }
+    // Heatmap glow
+    const gd=tapCtx2.createRadialGradient(rp.x,rp.y,0,rp.x,rp.y,50);
+    gd.addColorStop(0,rgba(${col},${rp.a*.1})); gd.addColorStop(1,'transparent');
+    tapCtx2.fillStyle=gd; tapCtx2.beginPath(); tapCtx2.arc(rp.x,rp.y,50,0,Math.PI*2); tapCtx2.fill();
+  });
+  // Pressure reading overlay
+  if(G.touchPressure>.05){
+    const label=pressure: ${Math.round(G.touchPressure*100)}%;
+    tapCtx2.fillStyle=rgba(0,229,200,.5);
+    tapCtx2.font='9px DM Mono'; tapCtx2.fillText(label,10,14);
+  }
+  requestAnimationFrame(drawTapCanvas);
+}
+
+/* ======================================================
+   SWIPE THOUGHTS
+   ====================================================== */
+const THOUGHTS=[
+  {text:'"I should have caught that sooner."',tag:'Self-criticism'},
+  {text:'"What if something goes wrong on my watch?"',tag:'Anxiety'},
+  {text:'"I\'m too exhausted to do this right."',tag:'Burnout'},
+  {text:'"Everyone else handles this fine."',tag:'Comparison'},
+  {text:'"I can\'t stop replaying that case."',tag:'Rumination'},
+  {text:'"I don\'t have time to feel this."',tag:'Suppression'},
+  {text:'"What if I make an unfixable mistake?"',tag:'Fear'},
+  {text:'"I should be stronger than this."',tag:'Self-judgment'},
+];
+let swQ=[],swN=0;
+function initSwipe(){
+  swQ=[...THOUGHTS].sort(()=>Math.random()-.5);
+  swN=0; document.getElementById('sw-trail').innerHTML='';
+  renderStack();
+}
+function renderStack(){
+  const s=document.getElementById('tstack'); s.innerHTML='';
+  if(!swQ.length){
+    s.innerHTML='<div class="tcard top" style="align-items:center;justify-content:center"><div style="font-size:36px">🌅</div><div class="t-text" style="text-align:center;margin-top:8px">All released.</div></div>';
+    setTimeout(()=>showScreen('screen-done'),1500); return;
+  }
+  swQ.slice(0,3).forEach((t,i)=>{
+    const c=document.createElement('div');
+    c.className='tcard '+(i===0?'top':i===1?'b1':'b2');
+    c.innerHTML=<div class="t-text">${t.text}</div><div class="t-tag">${t.tag}</div>;
+    s.appendChild(c);
+    if(i===0) attachSwipe(c,t.tag);
+  });
+}
+function attachSwipe(card,tag){
+  let ox=0,sx=0;
+  const s=e=>{sx=ox=(e.touches?e.touches[0].clientX:e.clientX);card.style.transition='none';};
+  const m=e=>{e.preventDefault();const cx=e.touches?e.touches[0].clientX:e.clientX;ox=cx-sx;card.style.transform=translateX(${ox}px) rotate(${ox*.09}deg);card.style.opacity=Math.max(.1,1-Math.abs(ox)/150);};
+  const e2=()=>{
+    if(Math.abs(ox)>85){
+      const d=ox>0?1:-1;
+      card.style.transition='transform .35s ease,opacity .35s';
+      card.style.transform=translateX(${d*550}px) rotate(${d*22}deg);
+      card.style.opacity='0';
+      swQ.shift(); swN++;
+      const chip=document.createElement('div');chip.className='sw-chip';chip.textContent='✓ '+tag;
+      document.getElementById('sw-trail').appendChild(chip);
+      setTimeout(renderStack,320);
+    } else {
+      card.style.transition='transform .3s';card.style.transform='';card.style.opacity='1';
+    }
+    ox=0;
+  };
+  card.addEventListener('mousedown',s);card.addEventListener('mousemove',m);card.addEventListener('mouseup',e2);
+  card.addEventListener('touchstart',s,{passive:false});card.addEventListener('touchmove',m,{passive:false});card.addEventListener('touchend',e2);
+}
+
+/* ======================================================
+   DONE SCREEN
+   ====================================================== */
+let sessStart=Date.now();
+function finishSession(){
+  const elapsed=Math.round((Date.now()-sessStart)/1000);
+  document.getElementById('d-time').textContent=elapsed;
+  document.getElementById('d-calm').textContent=(Math.round(G.calmScore*100)||Math.round((1-G.agitation)*70))+'%';
+  sessStart=Date.now();
+  micDraw=false;
+  if(tiltRaf)cancelAnimationFrame(tiltRaf);
+  clearInterval(beatIntv);
+}
+
+/* BOOT */
+window.addEventListener('load',()=>{
+  simulateMotion();
+  simulateMic();
+  initTouch();
+  setTimeout(()=>document.getElementById('agit-state').textContent='Ready to scan',1200);
+});
 </script>
-
 </body>
-</html>
+</html
