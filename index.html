@@ -1,32 +1,71 @@
 <!DOCTYPE html>
 <html>
-
 <head>
-    <title>PulseHold</title>
-    <link rel="stylesheet" href="style.css">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PulseHold</title>
+  <style>
+    body { text-align: center; font-family: Arial; }
+    #bar {
+      width: 0%;
+      height: 20px;
+      background: green;
+      margin: 20px auto;
+      transition: width 0.1s;
+    }
+    #container {
+      width: 80%;
+      height: 20px;
+      background: #ddd;
+      margin: auto;
+    }
+  </style>
 </head>
-
 <body>
 
-    <div class="background-blur"></div>
+<h1>PulseHold</h1>
+<p>Hold to Stabilize</p>
 
-    <div class="container">
+<div id="container">
+  <div id="bar"></div>
+</div>
 
-        <div class="glass-card">
+<button id="holdBtn">HOLD</button>
+<p id="status">Ready</p>
 
-            <h1>PulseHold</h1>
-            <p class="subtitle">Hold to Stabilize</p>
+<script>
+let bar = document.getElementById("bar");
+let status = document.getElementById("status");
+let btn = document.getElementById("holdBtn");
 
-            <div id="orb"></div>
+let width = 0;
+let interval;
 
-            <div id="status">Ready</div>
+function startHold() {
+  interval = setInterval(() => {
+    if (width >= 100) {
+      clearInterval(interval);
+      status.innerText = "Stabilized!";
+    } else {
+      width++;
+      bar.style.width = width + "%";
+      status.innerText = "Stabilizing...";
+    }
+  }, 50);
+}
 
-        </div>
+function stopHold() {
+  clearInterval(interval);
+  if (width < 100) {
+    width = 0;
+    bar.style.width = "0%";
+    status.innerText = "Lost Stability!";
+  }
+}
 
-    </div>
+btn.addEventListener("mousedown", startHold);
+btn.addEventListener("mouseup", stopHold);
+btn.addEventListener("touchstart", startHold);
+btn.addEventListener("touchend", stopHold);
+</script>
 
-    <script src="script.js"></script>
 </body>
-
 </html>
