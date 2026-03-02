@@ -2,27 +2,44 @@
 <html>
 <head>
   <title>PulseHold</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { text-align: center; font-family: Arial; }
-    #bar {
-      width: 0%;
-      height: 20px;
-      background: green;
-      margin: 20px auto;
-      transition: width 0.1s;
+    body {
+      text-align: center;
+      font-family: Arial, sans-serif;
+      margin-top: 50px;
     }
+
     #container {
       width: 80%;
-      height: 20px;
+      height: 25px;
       background: #ddd;
-      margin: auto;
+      margin: 20px auto;
+      border-radius: 20px;
+      overflow: hidden;
+    }
+
+    #bar {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(to right, red, green);
+      transition: width 0.05s;
+    }
+
+    button {
+      padding: 15px 40px;
+      font-size: 18px;
+      border-radius: 30px;
+      border: none;
+      background: black;
+      color: white;
     }
   </style>
 </head>
 <body>
 
 <h1>PulseHold</h1>
-<p>Hold to Stabilize</p>
+<p>Hold the button to stabilize</p>
 
 <div id="container">
   <div id="bar"></div>
@@ -37,23 +54,29 @@ let status = document.getElementById("status");
 let btn = document.getElementById("holdBtn");
 
 let width = 0;
-let interval;
+let interval = null;
 
-function startHold() {
+function startHold(e) {
+  e.preventDefault();
+  if (interval) return;
+
   interval = setInterval(() => {
     if (width >= 100) {
       clearInterval(interval);
-      status.innerText = "Stabilized!";
+      interval = null;
+      status.innerText = "Stabilized Successfully!";
     } else {
-      width++;
+      width += 1;
       bar.style.width = width + "%";
       status.innerText = "Stabilizing...";
     }
-  }, 50);
+  }, 30);
 }
 
 function stopHold() {
   clearInterval(interval);
+  interval = null;
+
   if (width < 100) {
     width = 0;
     bar.style.width = "0%";
@@ -63,6 +86,8 @@ function stopHold() {
 
 btn.addEventListener("mousedown", startHold);
 btn.addEventListener("mouseup", stopHold);
+btn.addEventListener("mouseleave", stopHold);
+
 btn.addEventListener("touchstart", startHold);
 btn.addEventListener("touchend", stopHold);
 </script>
