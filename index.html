@@ -1,29 +1,47 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>PulseHold</title>
+  <title>PulseHold - Stability Challenge</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
-      text-align: center;
+      margin: 0;
       font-family: Arial, sans-serif;
-      margin-top: 50px;
+      text-align: center;
+      background: #111;
+      color: white;
+      overflow-x: hidden;
     }
 
-    #container {
+    h1 {
+      margin-top: 30px;
+      font-size: 28px;
+    }
+
+    #pulseCircle {
+      width: 150px;
+      height: 150px;
+      margin: 40px auto;
+      border-radius: 50%;
+      background: red;
+      box-shadow: 0 0 40px red;
+      transition: all 0.1s linear;
+    }
+
+    #meterContainer {
       width: 80%;
-      height: 25px;
-      background: #ddd;
+      height: 20px;
+      background: #333;
       margin: 20px auto;
       border-radius: 20px;
       overflow: hidden;
     }
 
-    #bar {
-      width: 0%;
+    #meter {
       height: 100%;
-      background: linear-gradient(to right, red, green);
-      transition: width 0.05s;
+      width: 0%;
+      background: lime;
+      transition: width 0.1s linear;
     }
 
     button {
@@ -31,57 +49,113 @@
       font-size: 18px;
       border-radius: 30px;
       border: none;
-      background: black;
-      color: white;
+      background: white;
+      color: black;
+      font-weight: bold;
+      margin-top: 20px;
+    }
+
+    #status {
+      margin-top: 20px;
+      font-size: 18px;
+    }
+
+    #score {
+      margin-top: 10px;
+      font-size: 16px;
+      color: cyan;
     }
   </style>
 </head>
 <body>
 
 <h1>PulseHold</h1>
-<p>Hold the button to stabilize</p>
+<p>Hold to Stabilize the Pulse</p>
 
-<div id="container">
-  <div id="bar"></div>
+<div id="pulseCircle"></div>
+
+<div id="meterContainer">
+  <div id="meter"></div>
 </div>
 
 <button id="holdBtn">HOLD</button>
+
 <p id="status">Ready</p>
+<p id="score">Score: 0</p>
 
 <script>
-let bar = document.getElementById("bar");
-let status = document.getElementById("status");
+let meter = document.getElementById("meter");
+let circle = document.getElementById("pulseCircle");
+let statusText = document.getElementById("status");
+let scoreText = document.getElementById("score");
 let btn = document.getElementById("holdBtn");
 
-let width = 0;
-let interval = null;
+let stability = 0;
+let score = 0;
+let holdInterval = null;
+let unstableInterval = null;
+let isHolding = false;
 
-function startHold(e) {
-  e.preventDefault();
-  if (interval) return;
-
-  interval = setInterval(() => {
-    if (width >= 100) {
-      clearInterval(interval);
-      interval = null;
-      status.innerText = "Stabilized Successfully!";
-    } else {
-      width += 1;
-      bar.style.width = width + "%";
-      status.innerText = "Stabilizing...";
+// Unstable pulse animation
+function startUnstablePulse() {
+  unstableInterval = setInterval(() => {
+    if (!isHolding) {
+      let randomSize = 140 + Math.random() * 30;
+      circle.style.width = randomSize + "px";
+      circle.style.height = randomSize + "px";
+      circle.style.background = "red";
+      circle.style.boxShadow = "0 0 40px red";
     }
-  }, 30);
+  }, 150);
 }
 
-function stopHold() {
-  clearInterval(interval);
-  interval = null;
+// Start holding
+function startHold(e) {
+  e.preventDefault();
+  if (holdInterval) return;
 
-  if (width < 100) {
-    width = 0;
-    bar.style.width = "0%";
-    status.innerText = "Lost Stability!";
+  isHolding = true;
+  statusText.innerText = "Stabilizing...";
+
+  holdInterval = setInterval(() => {
+    if (stability >= 100) {
+      clearInterval(holdInterval);
+      holdInterval = null;
+      score++;
+      scoreText.innerText = "Score: " + score;
+      statusText.innerText = "Pulse Stabilized!";
+      circle.style.background = "lime";
+      circle.style.boxShadow = "0 0 40px lime";
+      setTimeout(resetGame, 1500);
+    } else {
+      stability += 2;
+      meter.style.width = stability + "%";
+      circle.style.width = "150px";
+      circle.style.height = "150px";
+      circle.style.background = "orange";
+      circle.style.boxShadow = "0 0 40px orange";
+    }
+  }, 50);
+}
+
+// Stop holding
+function stopHold() {
+  isHolding = false;
+  clearInterval(holdInterval);
+  holdInterval = null;
+
+  if (stability < 100) {
+    stability = 0;
+    meter.style.width = "0%";
+    statusText.innerText = "Pulse Unstable!";
   }
+}
+
+// Reset game
+function resetGame() {
+  stability = 0;
+  meter.style.width = "0%";
+  statusText.innerText = "Ready";
 }
 
 btn.addEventListener("mousedown", startHold);
@@ -90,6 +164,8 @@ btn.addEventListener("mouseleave", stopHold);
 
 btn.addEventListener("touchstart", startHold);
 btn.addEventListener("touchend", stopHold);
+
+startUnstablePulse();
 </script>
 
 </body>
